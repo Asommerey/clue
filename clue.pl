@@ -97,33 +97,32 @@ hasCard(Player, Card) :-
 	player(Player).
 
 
-% A guess is correct if the Suspect, Weapon and Room are correct. For
-% now only works for 6 players in the game.
+% A guess is correct if the Suspect, Weapon and Room are correct, if
+% the solution is found can be used to return it.
 correctGuess(Suspect, Weapon, Room) :-
 	correctSuspect(Suspect),
 	correctWeapon(Weapon),
 	correctRoom(Room).
 
-%TODO
-% The correct suspect is chosen if all players dont have them or
-% all suspects other than one are revealed
+% The correct suspect is found if it is the last unheld suspect, or if
+% all players cannot have that suspect.
 correctSuspect(Answer) :-
 	(lastUnheldSuspect(Answer);
 	allCantHaveSuspect(Answer)).
 
-%TODO
-% The correct weapon is chosen if all players dont have it or all
-% weapons other than one are revealed
+% The correct weapon is found if it is the last unheld weapon, or if all
+% players cannot have that weapon.
 correctWeapon(Answer) :-
 	(lastUnheldWeapon(Answer);
 	allCantHaveWeapon(Answer)).
 
-% The correct room is found if it is the last unheld card, or if all
-% players cannot have that card.
+% The correct room is found if it is the last unheld room, or if all
+% players cannot have that room.
 correctRoom(Answer) :-
 	(lastUnheldRoom(Answer);
 	allCantHaveRoom(Answer)).
 
+%Finds a Suspect all Players can't have, false if there isn't one
 allCantHaveSuspect(Answer) :-
 	findall(X, player(X), L1),
 	allCantHaveSuspectH(L1, Answer).
@@ -133,6 +132,7 @@ allCantHaveSuspectH([H|T], Answer) :-
 	cantHaveSuspect(H, Answer),
 	allCantHaveSuspectH(T, Answer).
 
+%Finds a Weapon all players can't have, false if there isn't one
 allCantHaveWeapon(Answer) :-
 	findall(X, player(X), L1),
 	allCantHaveWeaponH(L1, Answer).
@@ -142,6 +142,7 @@ allCantHaveWeaponH([H|T], Answer) :-
 	cantHaveWeapon(H, Answer),
 	allCantHaveWeaponH(T, Answer).
 
+%Finds a Room all players can't have, false if there isn't one
 allCantHaveRoom(Answer) :-
 	findall(X, player(X), L1),
 	allCantHaveRoomH(L1, Answer).
@@ -151,19 +152,22 @@ allCantHaveRoomH([H|T], Answer) :-
 	cantHaveRoom(H, Answer),
 	allCantHaveRoomH(T, Answer).
 
-%First way to solve, 5/6 suspects known to be held.
+% First way to solve, 5/6 suspects known to be held, or false if more
+% than one suspect aren't known to be held
 lastUnheldSuspect(Answer) :-
 	remainingSuspects(Remaining),
 	length(Remaining, 1),
 	nth0(0, Remaining, Answer).
 
-%First way to solve, 5/6 weapons known to be held.
+% First way to solve, 5/6 weapons known to be held, or false if more
+% than one weapon isn't known to be held.
 lastUnheldWeapon(Answer) :-
 	remainingWeapons(Remaining),
 	length(Remaining, 1),
 	nth0(0, Remaining, Answer).
 
-%First way to solve, 8/9 rooms known to be held.
+% First way to solve, 8/9 rooms known to be held, or false if more than
+% one room isn't known to be held.
 lastUnheldRoom(Answer) :-
 	remainingRooms(Remaining),
 	length(Remaining, 1),

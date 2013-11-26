@@ -74,7 +74,7 @@ player(peacock).
 player(scarlet).
 player(white).
 
-% If a player can't refute a guess assert he cant refute those cards
+% Test if a player can't refute a guess
 cantRefute(Player, Suspect, Weapon, Room) :-
 	cantHaveSuspect(Player, Suspect),
 	cantHaveWeapon(Player, Weapon),
