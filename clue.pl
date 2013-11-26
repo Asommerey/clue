@@ -21,8 +21,14 @@
 %	           Where X is either Suspect, Weapon, or Room.
 %	           And Y is a card of that type.
 
+%Dynamically add which players are in the game,
+%Turn order should be based on order added,
+%e.g. First player at top, Second second from top ect.
+%Accomplish this by adding using assertz(player(X).
+%in order of players turn.
+:-dynamic player/1.
+
 %Clauses of the form cantHave(Player, Card)
-%Created via cantRefute
 :-dynamic cantHaveSuspect/2.
 :-dynamic cantHaveWeapon/2.
 :-dynamic cantHaveRoom/2.
@@ -68,7 +74,7 @@ player(peacock).
 player(scarlet).
 player(white).
 
-% If a player can't refute a guess assert he cant refute those cards
+% Test if a player can't refute a guess
 cantRefute(Player, Suspect, Weapon, Room) :-
 	cantHaveSuspect(Player, Suspect),
 	cantHaveWeapon(Player, Weapon),
