@@ -13,13 +13,14 @@
 %	      How Many Cards each player has
 %Things Learned in Game:
 %	      A player cannot refute (Doesn't have 3 cards)
-%	         assert(cantHaveSuspect(Player, Suspect)),
-%	         assert(cantHaveWeapon(Player, Weapon)),
-%	         assert(cantHaveRoom(Player, Room)).
-%	      A player reveals a card
-%	         assert(hasCardX(Player, Y)).
-%	           Where X is either Suspect, Weapon, or Room.
-%	           And Y is a card of that type.
+%		 assert(player, suspect, weapon, room)).
+%	      A player refutes yours (Shows you one card they have)
+%	         assert(hasCard(player, card)).
+%	      A player refutes anothers (Don't know which card)
+%	      A player makes a wrong accusation
+
+%Clauses of the form cantRefute(Player, Suspect, Weapon, Room)
+:-dynamic cantRefute/4.
 
 %Clauses of the form cantHave(Player, Card)
 %Created via cantRefute
@@ -28,6 +29,7 @@
 :-dynamic cantHaveRoom/2.
 
 %Clauses of the form hasCard(Player, Card)
+:-dynamic hasCard/2.
 :-dynamic hasCardRoom/2.
 :-dynamic hasCardSuspect/2.
 :-dynamic hasCardWeapon/2.
@@ -75,8 +77,7 @@ cantRefute(Player, Suspect, Weapon, Room) :-
 	cantHaveRoom(Player, Room).
 
 
-% Can be used to list all of a players cards, or test if a player has a
-% certain card
+% Can be used to list all of a players cards
 hasCard(Player, Card) :-
 	hasCardWeapon(Player, Card),
 	weapon(Card),
