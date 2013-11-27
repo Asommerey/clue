@@ -26,6 +26,7 @@
 %and which character is the player
 :-dynamic player/1.
 :-dynamic turn/1.
+:-dynamic toRefute/1.
 :-dynamic userIs/1.
 
 %Clauses of the form cantHave(Player, Card)
@@ -66,10 +67,47 @@ room(library).
 room(study).
 
 % Sets turn to whichever player goes first, scarlet if in game
-% otherwise mustard, white ect
+% otherwise mustard, white ect, depends on order of
+% assert(player(X)) in generate players which is written
+% to be in the correct turn order
 firstTurn :-
-	player(X),
-	assert(turn(X)).
+	player(X),	  %Uses helper to start as there
+	assert(turn(X)),  %is none to retract at the start
+	nextToRefuteH(X),!.
+
+
+%Takes the player who's turn it is and sets toRefute to
+%the opponent to their right.
+nextToRefute(X) :-
+	retractall(toRefute(_)),
+	nextToRefuteH(X).
+
+%Falls through to next player to have to refute
+nextToRefuteH(scarlet) :-
+	(player(mustard),
+	 assert(toRefute(mustard)),!);
+	nextToRefuteH(mustard).
+nextToRefuteH(mustard) :-
+	(player(white),
+	 assert(toRefute(white)),!);
+	nextToRefuteH(white).
+nextToRefuteH(white) :-
+	(player(green),
+	 assert(toRefute(green)),!);
+	nextToRefuteH(green).
+nextToRefuteH(green) :-
+	(player(peacock),
+	 assert(toRefute(peacock)),!);
+	nextToRefuteH(peacock).
+nextToRefuteH(peacock) :-
+	(player(plum),
+	 assert(toRefute(plum)),!);
+	nextToRefuteH(plum).
+nextToRefuteH(plum) :-
+	(player(scarlet),
+	 assert(toRefute(scarlet)),!);
+	nextToRefuteH(scarlet).
+
 
 % Changes turn/1 to the next player who is in the games turn.
 nextPlayer :-
@@ -77,6 +115,7 @@ nextPlayer :-
 	retract(turn(X)),
 	nextPlayerH(X).
 
+% Used to fall through any players missing from the game.
 nextPlayerH(scarlet) :-
 	(player(mustard),
 	 assert(turn(mustard)),!);
@@ -291,14 +330,22 @@ cantHaveRoom(Player, Room) :-
 	player(Player),
 	Player \== Other.
 
-%UI Work Below Here:
-
+% Start the game with start(X,Y,Z) when a solution is found
+% X = Suspect, Y = Weapon, Z = Room.
 start(Suspect, Weapon, Room) :-
 	init,
 	playerTurn,
 	correctGuess(Suspect, Weapon, Room),
 	end.
 
+%In case of typing error may be able to restart the game with
+%Data intact, not guaranteed to work (Type carefully).
+restart(Suspect, Weapon, Room) :-
+	playerTurn,
+	correctGuess(Suspect, Weapon, Room),
+	end.
+
+%Initilises the board state according to num players ect.
 init :-
 	write('How many players are in the game?\n'),
 	read(NP),
@@ -311,7 +358,9 @@ init :-
 	assert(userIs(YC)),
 	knownCards(YC).
 
+% Retracts all statements to reset the game.
 end :-
+	retractall(toRefute(_)),
 	retractall(turn(_)),
 	retractall(userIs(_)),
 	retractall(player(_)),
@@ -322,6 +371,8 @@ end :-
 	retractall(hasCardWeapon(_,_)),
 	retractall(hasCardRoom(_,_)).
 
+%Turn function, calls playerTurnH with y/n depending on if
+%it is the users turn.
 playerTurn :-
 	write('It is '),
 	turn(Y),
@@ -333,17 +384,28 @@ playerTurn :-
 	playerTurnH(n).
 
 playerTurnH(y) :-
-	write('Did you make an accusation? (y/n)\n'),
+	write('Are you making a suggestion? (y/n)\n'),
 	read(Y),
 	accusationP(Y).
 
 playerTurnH(n) :-
-	write('Did they make an accusation? (y/n)\n'),
+	write('Did they make a suggestion? (y/n)\n'),
 	read(Y),
 	accusationO(Y).
 
+%If you are making an accusation shows the revealed cards
+%and allows you to input your suggestion.
 accusationP(y) :-
-	write('Who was the suspect? \n'),
+	write('Unrevealed Suspects are: \n'),
+	remainingSuspects(Suspects),
+	write(Suspects),
+	write('\nUnrevealed Weapons are: \n'),
+	remainingWeapons(Weapons),
+	write(Weapons),
+	write('\nUnrevealed Rooms are: \n'),
+	remainingRooms(Rooms),
+	write(Rooms),
+	write('\nWho was the suspect? \n'),
 	read(S),
 	suspect(S),
 	write('What was the weapon? \n'),
@@ -355,17 +417,18 @@ accusationP(y) :-
 	write('How many players couldn\'t refute it? \n'),
 	read(NPCR),
 	accusationH(S, W, R, NPCR),
-	write('Who refuted it? \n'),
-	read(CO),
-	player(CO),
-	write('Which card did they have? \n'),
+	write('Which card did '),
+	toRefute(X),
+	write(X),
+	write(' have \n'),
 	read(CH),
-	hasCard(CO, CH),
+	hasCard(X, CH),
 	finishTurn.
 
 accusationP(n) :-
 	finishTurn.
 
+%Allows you to input an opponents suggestion
 accusationO(y) :-
 	write('Who was the suspect? \n'),
 	read(S),
@@ -378,6 +441,8 @@ accusationO(y) :-
 	room(R),
 	write('How many players couldn\'t refute it? \n'),
 	read(NPCR),
+	turn(X),
+	nextToRefute(X),
 	accusationH(S, W, R, NPCR),
 	finishTurn.
 
@@ -385,24 +450,33 @@ accusationO(y) :-
 accusationO(n) :-
 	finishTurn.
 
+%Accusation helper to assert for all that can't refute an
+%accusation
 accusationH(_,_,_,0) :- !.
 accusationH(Suspect, Weapon, Room, Num) :-
-	write('Who couldn\'t refute it? \n'),
-	read(CR1),
+	toRefute(CR1),
+	write(CR1),
+	write(' couldn\'t refute it \n'),
 	(hasCardSuspect(CR1, Suspect);
 	assert(cantHaveSuspect(CR1, Suspect))),
 	(hasCardWeapon(CR1, Weapon);
 	assert(cantHaveWeapon(CR1, Weapon))),
 	(hasCardRoom(CR1, Room);
 	assert(cantHaveRoom(CR1, Room))),
+	nextToRefute(CR1),
 	NewNum is Num-1,
 	accusationH(Suspect, Weapon, Room, (NewNum)).
 
+%Tests if the correct guess has been found, otherwise
+%goes to the next player.
 finishTurn :-
 	nextPlayer,
+	turn(X),
+	nextToRefute(X),
 	(correctGuess(_, _, _),!);
 	playerTurn.
 
+%Input for which cards the user has
 knownCards(User) :-
 	write('How many cards do you have? (3-6)\n'),
 	read(NC),
@@ -413,6 +487,7 @@ knownCards(User) :-
 	knownCardsH(User, NC),
 	(playerDoesntHave(User);true).
 
+%Length depends on whether 3 or 6 cards are held.
 knownCardsH(User, 3) :-
 	write('What is your first card?\n'),
 	read(C1),
@@ -443,7 +518,7 @@ knownCardsH(User, 6) :-
 	hasCard(User, C5).
 
 
-
+% Dynamically asserts which players are in the game
 generatePlayers(6) :-
 	write('Player Choices = [scarlet, mustard, white, green, peacock, plum]\n'),
 	assert(player(scarlet)),
@@ -453,6 +528,7 @@ generatePlayers(6) :-
 	assert(player(peacock)),
 	assert(player(plum)).
 
+%And removes any that aren't if neccessary
 generatePlayers(5) :-
 	generatePlayers(6),
 	write('Which player is not in the game? \n'),
