@@ -22,12 +22,10 @@
 %	           Where X is either Suspect, Weapon, or Room.
 %	           And Y is a card of that type.
 
-%Dynamically add which players are in the game,
-%Turn order should be based on order added,
-%e.g. First player at top, Second second from top ect.
-%Accomplish this by adding using assertz(player(X).
-%in order of players turn.
+%Dynamically add which players are in the game, who's turn it is
+%and which character is the player
 :-dynamic player/1.
+:-dynamic turn/1.
 :-dynamic userIs/1.
 
 %Clauses of the form cantHave(Player, Card)
@@ -66,6 +64,45 @@ room(conservatory).
 room(billiardroom).
 room(library).
 room(study).
+
+% Sets turn to whichever player goes first, scarlet if in game
+% otherwise mustard, white ect
+firstTurn :-
+	player(X),
+	assert(turn(X)).
+
+% Changes turn/1 to the next player who is in the games turn.
+nextPlayer :-
+	turn(X),
+	retract(turn(X)),
+	nextPlayerH(X).
+
+nextPlayerH(scarlet) :-
+	(player(mustard),
+	 assert(turn(mustard)),!);
+	nextPlayerH(mustard).
+nextPlayerH(mustard) :-
+	(player(white),
+	 assert(turn(white)),!);
+	nextPlayerH(white).
+nextPlayerH(white) :-
+	(player(green),
+	 assert(turn(green)),!);
+	nextPlayerH(green).
+nextPlayerH(green) :-
+	(player(peacock),
+	 assert(turn(peacock)),!);
+	nextPlayerH(peacock).
+nextPlayerH(peacock) :-
+	(player(plum),
+	 assert(turn(plum)),!);
+	nextPlayerH(plum).
+nextPlayerH(plum) :-
+	(player(scarlet),
+	 assert(turn(scarlet)),!);
+	nextPlayerH(scarlet).
+
+
 
 % Test if a player can't refute a guess
 cantRefute(Player, Suspect, Weapon, Room) :-
@@ -267,12 +304,16 @@ init :-
 	read(NP),
 	number(NP),
 	generatePlayers(NP),
+	firstTurn,
 	write('Which character are you?\n'),
 	read(YC),
 	player(YC),
+	assert(userIs(YC)),
 	knownCards(YC).
 
 end :-
+	retractall(turn(_)),
+	retractall(userIs(_)),
 	retractall(player(_)),
 	retractall(cantHaveSuspect(_,_)),
 	retractall(cantHaveWeapon(_,_)),
@@ -282,9 +323,14 @@ end :-
 	retractall(hasCardRoom(_,_)).
 
 playerTurn :-
-	write('Is it your turn? (y/n)\n'),
-	read(X),
-	playerTurnH(X).
+	write('It is '),
+	turn(Y),
+	write(Y),
+	write('\'s turn. '),
+	(userIs(Z),
+	 Z == Y,
+	 playerTurnH(y));
+	playerTurnH(n).
 
 playerTurnH(y) :-
 	write('Did you make an accusation? (y/n)\n'),
@@ -353,6 +399,7 @@ accusationH(Suspect, Weapon, Room, Num) :-
 	accusationH(Suspect, Weapon, Room, (NewNum)).
 
 finishTurn :-
+	nextPlayer,
 	(correctGuess(_, _, _),!);
 	playerTurn.
 
@@ -398,7 +445,7 @@ knownCardsH(User, 6) :-
 
 
 generatePlayers(6) :-
-	write('Player Choices = [plum, mustard, green, peacock, scarlet, white]\n'),
+	write('Player Choices = [scarlet, mustard, white, green, peacock, plum]\n'),
 	assert(player(scarlet)),
 	assert(player(mustard)),
 	assert(player(white)),
