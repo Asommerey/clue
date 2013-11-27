@@ -1,7 +1,7 @@
 %Things Known at Start:
 %	      Each Card is in one location (player or file)
 %	      One of each type is in the case file
-%	      6 Suspects, 6 Weapons, 9 Rooms
+%	      Total of 6 Suspects, 6 Weapons, 9 Rooms
 %	      Your Hand of Cards:
 %		 3 Cards for 6 Players
 %		 3-4 Cards for 5 Players:
@@ -10,7 +10,6 @@
 %	           4 Cards for 2 Players and 5 Cards for 2 Players
 %	         6 Cards for 3 Players
 %	      Players hold 5 Suspects, 5 Weapons, 8 Rooms
-%	      How Many Cards each player has
 %
 %Things Learned in Game:
 %	      A player cannot refute (Doesn't have 3 cards)
@@ -38,6 +37,8 @@
 :-dynamic hasCardSuspect/2.
 :-dynamic hasCardWeapon/2.
 :-dynamic hasCardRoom/2.
+
+:-dynamic opponentRefuted/4.
 
 %List of Suspect Cards
 suspect(plum).
@@ -308,7 +309,6 @@ remainingRooms(Rooms) :-
 	findall(Y, room(Y), L2),
 	subtract(L2, L1, Rooms).
 
-
 % A player can't have a weapon if another player has that card
 cantHaveWeapon(Player, Weapon) :-
 	hasCardWeapon(Other, Weapon),
@@ -329,6 +329,15 @@ cantHaveRoom(Player, Room) :-
 	player(Other),
 	player(Player),
 	Player \== Other.
+
+suggestedWeapons(Weapons) :-
+	remainingWeapons(Weapons).
+
+suggestedRooms(Rooms) :-
+	remainingRooms(Rooms).
+
+suggestedSuspects(Suspects) :-
+	remainingSuspects(Suspects).
 
 % Start the game with start(X,Y,Z) when a solution is found
 % X = Suspect, Y = Weapon, Z = Room.
@@ -384,7 +393,14 @@ playerTurn :-
 	playerTurnH(n).
 
 playerTurnH(y) :-
-	write('Are you making a suggestion? (y/n)\n'),
+	((correctRoom(X),
+	  room(X),
+	 write('The room is: '),
+	 write(X));
+	(write('Unrevealed Rooms are: \n'),
+	suggestedRooms(Rooms),
+	write(Rooms))),
+	write('\nAre you making a suggestion? (y/n)\n'),
 	read(Y),
 	accusationP(Y).
 
@@ -396,15 +412,20 @@ playerTurnH(n) :-
 %If you are making an accusation shows the revealed cards
 %and allows you to input your suggestion.
 accusationP(y) :-
-	write('Unrevealed Suspects are: \n'),
-	remainingSuspects(Suspects),
-	write(Suspects),
-	write('\nUnrevealed Weapons are: \n'),
-	remainingWeapons(Weapons),
-	write(Weapons),
-	write('\nUnrevealed Rooms are: \n'),
-	remainingRooms(Rooms),
-	write(Rooms),
+	((correctSuspect(CS),
+	  suspect(CS),
+	  write('The suspect is: '),
+	  write(CS));
+	(write('Unrevealed Suspects are: \n'),
+	suggestedSuspects(Suspects),
+	write(Suspects))),
+	((correctWeapon(CW),
+          weapon(CW),
+	  write('The weapon is: '),
+	  write(CW));
+	(write('\nUnrevealed Weapons are: \n'),
+	suggestedWeapons(Weapons),
+	write(Weapons))),
 	write('\nWho was the suspect? \n'),
 	read(S),
 	suspect(S),
