@@ -38,6 +38,8 @@
 :-dynamic hasCardWeapon/2.
 :-dynamic hasCardRoom/2.
 
+% Clauses if a player can refute a
+% suggestion opponentRefuted(Player, Suspect, Weapon, Room)
 :-dynamic opponentRefuted/4.
 
 %List of Suspect Cards
@@ -67,6 +69,31 @@ room(billiardroom).
 room(library).
 room(study).
 
+checkRefutes :-
+	findall(X, opponentRefuted(X,_,_,_), L1),
+	checkRefutesH(L1).
+
+checkRefutesH([]).
+checkRefutesH([H|T]) :-
+	opponentRefuted(H,S,W,R),
+	((cantHaveWeapon(H,W),
+	cantHaveSuspect(H,S),
+	(hasCardRoom(H,R);
+	(assert(hasCardRoom(H,R)),
+	retract(opponentRefuted(H,W,S,R))));
+	(cantHaveWeapon(H,W),
+	cantHaveRoom(H,R),
+	(hasCardSuspect(H,S);
+	(assert(hasCardSuspect(H,S))),
+	retract(opponentRefuted(H,W,S,R))));
+	(cantHaveRoom(H,R),
+	cantHaveSuspect(H,S),
+	(hasCardWeapon(H,W);
+	(assert(hasCardWeapon(H,W))),
+	retract(opponentRefuted(H,W,S,R))))));
+	true,
+	checkRefutesH(T).
+
 % Sets turn to whichever player goes first, scarlet if in game
 % otherwise mustard, white ect, depends on order of
 % assert(player(X)) in generate players which is written
@@ -74,7 +101,7 @@ room(study).
 firstTurn :-
 	player(X),	  %Uses helper to start as there
 	assert(turn(X)),  %is none to retract at the start
-	nextToRefuteH(X),!.
+	nextToRefuteH(X).
 
 
 %Takes the player who's turn it is and sets toRefute to
@@ -141,14 +168,6 @@ nextPlayerH(plum) :-
 	(player(scarlet),
 	 assert(turn(scarlet)),!);
 	nextPlayerH(scarlet).
-
-
-
-% Test if a player can't refute a guess
-cantRefute(Player, Suspect, Weapon, Room) :-
-	cantHaveSuspect(Player, Suspect),
-	cantHaveWeapon(Player, Weapon),
-	cantHaveRoom(Player, Room).
 
 listCards(Player, X) :-
 	(hasCardSuspect(Player, X);
@@ -217,10 +236,19 @@ pDHRoom(Player) :-
 
 % A guess is correct if the Suspect, Weapon and Room are correct, if
 % the solution is found can be used to return it.
-correctGuess(Suspect, Weapon, Room) :-
+correctGuess :-
 	correctSuspect(Suspect),
 	correctWeapon(Weapon),
-	correctRoom(Room).
+	correctRoom(Room),
+	write('\n The murderer is: '),
+	write(Suspect),
+	write('\n The murder weapon was: '),
+	write(Weapon),
+	write('\n The murderer occured in: '),
+	write(Room),
+	end.
+
+
 
 % The correct suspect is found if it is the last unheld suspect, or if
 % all players cannot have that suspect.
@@ -341,18 +369,18 @@ suggestedSuspects(Suspects) :-
 
 % Start the game with start(X,Y,Z) when a solution is found
 % X = Suspect, Y = Weapon, Z = Room.
-start(Suspect, Weapon, Room) :-
+start :-
 	init,
-	playerTurn,
-	correctGuess(Suspect, Weapon, Room),
-	end.
+	repeat,
+	(correctGuess;
+	\+playerTurn).
 
 %In case of typing error may be able to restart the game with
 %Data intact, not guaranteed to work (Type carefully).
-restart(Suspect, Weapon, Room) :-
-	playerTurn,
-	correctGuess(Suspect, Weapon, Room),
-	end.
+restart :-
+	repeat,
+	(correctGuess;
+	\+playerTurn).
 
 %Initilises the board state according to num players ect.
 init :-
@@ -369,6 +397,7 @@ init :-
 
 % Retracts all statements to reset the game.
 end :-
+	retractall(opponentRefuted(_,_,_,_)),
 	retractall(toRefute(_)),
 	retractall(turn(_)),
 	retractall(userIs(_)),
@@ -396,7 +425,8 @@ playerTurnH(y) :-
 	((correctRoom(X),
 	  room(X),
 	 write('The room is: '),
-	 write(X));
+	 write(X),
+	 write('\n'));
 	(write('Unrevealed Rooms are: \n'),
 	suggestedRooms(Rooms),
 	write(Rooms))),
@@ -415,15 +445,17 @@ accusationP(y) :-
 	((correctSuspect(CS),
 	  suspect(CS),
 	  write('The suspect is: '),
-	  write(CS));
-	(write('Unrevealed Suspects are: \n'),
+	  write(CS),
+	  write('\n'));
+	(write('Unrevealed Suspects are: '),
 	suggestedSuspects(Suspects),
 	write(Suspects))),
+	write('\n'),
 	((correctWeapon(CW),
           weapon(CW),
 	  write('The weapon is: '),
 	  write(CW));
-	(write('\nUnrevealed Weapons are: \n'),
+	(write('Unrevealed Weapons are: '),
 	suggestedWeapons(Weapons),
 	write(Weapons))),
 	write('\nWho was the suspect? \n'),
@@ -441,7 +473,7 @@ accusationP(y) :-
 	write('Which card did '),
 	toRefute(X),
 	write(X),
-	write(' have \n'),
+	write(' have? \n'),
 	read(CH),
 	hasCard(X, CH),
 	finishTurn.
@@ -465,6 +497,11 @@ accusationO(y) :-
 	turn(X),
 	nextToRefute(X),
 	accusationH(S, W, R, NPCR),
+	toRefute(CR),
+	write(CR),
+	write(' refuted their suggestion.\n'),
+	(opponentRefuted(CR, S, W, R);
+	assert(opponentRefuted(CR, S, W, R))),
 	finishTurn.
 
 
@@ -473,16 +510,16 @@ accusationO(n) :-
 
 %Accusation helper to assert for all that can't refute an
 %accusation
-accusationH(_,_,_,0) :- !.
+accusationH(_,_,_,0).
 accusationH(Suspect, Weapon, Room, Num) :-
 	toRefute(CR1),
 	write(CR1),
 	write(' couldn\'t refute it \n'),
-	(hasCardSuspect(CR1, Suspect);
+	(cantHaveSuspect(CR1, Suspect);
 	assert(cantHaveSuspect(CR1, Suspect))),
-	(hasCardWeapon(CR1, Weapon);
+	(cantHaveWeapon(CR1, Weapon);
 	assert(cantHaveWeapon(CR1, Weapon))),
-	(hasCardRoom(CR1, Room);
+	(cantHaveRoom(CR1, Room);
 	assert(cantHaveRoom(CR1, Room))),
 	nextToRefute(CR1),
 	NewNum is Num-1,
@@ -494,8 +531,7 @@ finishTurn :-
 	nextPlayer,
 	turn(X),
 	nextToRefute(X),
-	(correctGuess(_, _, _),!);
-	playerTurn.
+	checkRefutes.
 
 %Input for which cards the user has
 knownCards(User) :-
